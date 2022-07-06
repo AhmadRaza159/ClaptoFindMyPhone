@@ -1,32 +1,41 @@
 package h.k.claptofindmyphone.services
 
 import android.app.*
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
+import android.content.pm.PackageManager
+import android.hardware.Camera
+import android.hardware.camera2.CameraManager
+import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
-import android.os.Build
-import android.os.Handler
-import android.os.HandlerThread
-import android.os.IBinder
+import android.media.ToneGenerator
+import android.os.*
 import android.util.Log
 import androidx.annotation.RequiresApi
-import androidx.core.os.HandlerCompat
-import h.k.claptofindmyphone.MainActivity
+import com.google.gson.Gson
 import h.k.claptofindmyphone.R
-import h.k.claptofindmyphone.databinding.ActivityMainBinding
+import h.k.claptofindmyphone.ui.MainActivity
 import org.tensorflow.lite.task.audio.classifier.AudioClassifier
-import java.lang.String
-import kotlin.Double
 
 
 class ServiceRecordAudio : Service() {
     private var mNM: NotificationManager? = null
     private var recorder: MediaRecorder? = null
-
+    private lateinit var beeper : ToneGenerator
     private var audioClassifier: AudioClassifier? = null
     private var audioRecord: AudioRecord? = null
     private var classificationInterval = 500L // how often should classification run in milli-secs
     private lateinit var handler: Handler // background thread handler to run classification
+    lateinit var sharedPeref: SharedPreferences
+    lateinit var sharedPerefEditor: SharedPreferences.Editor
+    lateinit var gson: Gson
+    lateinit var cameraManager: CameraManager
+    lateinit var vibrator: Vibrator
+    val myString = "0101010101"
+    val blinkDelay: Long = 50
+
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate() {
         super.onCreate()
@@ -67,40 +76,32 @@ class ServiceRecordAudio : Service() {
             .setContentIntent(notiIntent) // The intent to send when the entry is clicked
             .build()
         startForeground(159, notification)
-//        val handlerThread = HandlerThread("backgroundThread")
-//        handlerThread.start()
-//        handler = HandlerCompat.createAsync(handlerThread.looper)
 
-        handler=Handler()
+        gson = Gson()
+        sharedPeref = this.getSharedPreferences(
+            "ctfmf", Context.MODE_PRIVATE
+        )
+        sharedPerefEditor = sharedPeref.edit()
+        cameraManager = this.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        vibrator=this.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        handler = Handler()
         startAudioClassification()
         //////
-//        recorder = MediaRecorder()
-//        recorder!!.setAudioSource(MediaRecorder.AudioSource.MIC)
-//        recorder!!.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
-//        recorder!!.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
-//        recorder!!.setOutputFile("/data/data/$packageName/music.3gp")
-//
-//        recorder!!.prepare()
-//        recorder!!.start()
-//        val handler = Handler()
-//        handler.postDelayed(object : Runnable {
-//            override fun run() {
-//                Log.e("firstday",recorder!!.maxAmplitude.toString())
-//
-//                handler.postDelayed(this, 1000)
-//            }
-//        }, 1000)
-//        recorder!!.setOnInfoListener { mediaRecorder, i, i2 ->
-//
-//        }
+
 
     }
+
     override fun onBind(p0: Intent?): IBinder? {
         return null
     }
+
     override fun onDestroy() {
         super.onDestroy()
         mNM?.cancel(159)
+        handler.removeCallbacksAndMessages(null)
+        audioRecord?.stop()
+        audioRecord = null
+        audioClassifier = null
 //        Log.e("firstday",recorder!!.maxAmplitude.toString())
 //        recorder!!.stop();
 //        recorder!!.release();
@@ -138,26 +139,116 @@ class ServiceRecordAudio : Service() {
 
                 val finishTime = System.currentTimeMillis()
                 if (filteredModelOutput.size > 0) {
+                    if (filteredModelOutput[0].index == 56 || filteredModelOutput[0].index == 57 || filteredModelOutput[0].index == 58) {
+                        beeper = ToneGenerator(AudioManager.STREAM_NOTIFICATION, sharedPeref.getInt("melody_volume_clap",100))
+
+                        if (sharedPeref.getBoolean("melody_clap", false)) {
+                            beeper.startTone(ToneGenerator.TONE_PROP_ACK,sharedPeref.getInt("melody_length_clap",500))
+                        }
+                        if (sharedPeref.getBoolean("flash_clap", false)) {
+                            if (this@ServiceRecordAudio.packageManager?.hasSystemFeature(
+                                    PackageManager.FEATURE_CAMERA_FLASH
+                                ) == true
+                            ) {
+
+
+                                for (i in 0 until myString.length) {
+                                    if (myString[i] == '0') {
+                                        cameraManager.setTorchMode(
+                                            cameraManager.cameraIdList[0],
+                                            true
+                                        )
+                                    } else {
+                                        cameraManager.setTorchMode(
+                                            cameraManager.cameraIdList[0],
+                                            false
+                                        )
+                                    }
+                                    try {
+                                        Thread.sleep(blinkDelay)
+                                    } catch (e: InterruptedException) {
+                                        e.printStackTrace()
+                                    }
+                                }
+                            }
+                        }
+                        if (sharedPeref.getBoolean("vibrate_clap",false)){
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                vibrator.vibrate(VibrationEffect.createOneShot(sharedPeref.getInt("melody_length_clap",500).toLong(), VibrationEffect.DEFAULT_AMPLITUDE));
+                            } else {
+                                //deprecated in API 26
+                                vibrator.vibrate(sharedPeref.getInt("melody_length_clap",500).toLong());
+                            }
+                        }
+
                     Log.e(
                         "qq",
                         filteredModelOutput[0].label.toString() + " , " + filteredModelOutput[0].index.toString()
                     )
-
                 }
-                Log.d("TAG", "Latency = ${finishTime - startTime}ms")
+                    else if (filteredModelOutput[0].index == 479 || filteredModelOutput[0].index == 396 || filteredModelOutput[0].index == 79|| filteredModelOutput[0].index == 35) {
+                        beeper = ToneGenerator(AudioManager.STREAM_NOTIFICATION, sharedPeref.getInt("melody_volume_whistle",100))
+                        if (sharedPeref.getBoolean("melody_whistle", false)) {
+                            beeper.startTone(ToneGenerator.TONE_PROP_ACK,sharedPeref.getInt("melody_length_whistle",500))
+                        }
+                        if (sharedPeref.getBoolean("flash_whistle", false)) {
+                            if (this@ServiceRecordAudio.packageManager?.hasSystemFeature(
+                                    PackageManager.FEATURE_CAMERA_FLASH
+                                ) == true
+                            ) {
 
-                // Updating the UI
 
-                // Rerun the classification after a certain interval
-                handler.postDelayed(this, classificationInterval)
-            }
+                                for (i in 0 until myString.length) {
+                                    if (myString[i] == '0') {
+                                        cameraManager.setTorchMode(
+                                            cameraManager.cameraIdList[0],
+                                            true
+                                        )
+                                    } else {
+                                        cameraManager.setTorchMode(
+                                            cameraManager.cameraIdList[0],
+                                            false
+                                        )
+                                    }
+                                    try {
+                                        Thread.sleep(blinkDelay)
+                                    } catch (e: InterruptedException) {
+                                        e.printStackTrace()
+                                    }
+                                }
+                            }
+                        }
+                        if (sharedPeref.getBoolean("vibrate_whistle",false)){
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                vibrator.vibrate(VibrationEffect.createOneShot(sharedPeref.getInt("melody_length_whistle",500).toLong(), VibrationEffect.DEFAULT_AMPLITUDE));
+                            } else {
+                                //deprecated in API 26
+                                vibrator.vibrate(sharedPeref.getInt("melody_length_whistle",500).toLong())
+                            }
+                        }
+
+                        Log.e(
+                            "qq",
+                            filteredModelOutput[0].label.toString() + " , " + filteredModelOutput[0].index.toString()
+                        )
+                    }
+
+
+                    }
+            Log.d("TAG", "Latency = ${finishTime - startTime}ms")
+
+            // Updating the UI
+
+            // Rerun the classification after a certain interval
+            handler.postDelayed(this, classificationInterval)
         }
-
-        // Start the classification process
-        handler.post(run)
-
-        // Save the instances we just created for use later
-        audioClassifier = classifier
-        audioRecord = record
     }
+
+// Start the classification process
+    handler.post(run)
+
+// Save the instances we just created for use later
+    audioClassifier = classifier
+    audioRecord = record
+}
 }
