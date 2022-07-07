@@ -171,7 +171,7 @@
             app:layout_constraintTop_toTopOf="@+id/btn_melody" />
 
         <androidx.appcompat.widget.AppCompatSeekBar
-            android:id="@+id/appCompatSeekBar"
+            android:id="@+id/length_seekbar"
             android:layout_width="@dimen/_92sdp"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/_2sdp"
@@ -179,11 +179,12 @@
             app:layout_constraintTop_toBottomOf="@+id/switch_melody" />
 
         <androidx.appcompat.widget.AppCompatSeekBar
+            android:id="@+id/volume_seekbar"
             android:layout_width="@dimen/_92sdp"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/_12sdp"
             app:layout_constraintEnd_toEndOf="@+id/switch_melody"
-            app:layout_constraintTop_toBottomOf="@+id/appCompatSeekBar" />
+            app:layout_constraintTop_toBottomOf="@+id/length_seekbar" />
 
 
 

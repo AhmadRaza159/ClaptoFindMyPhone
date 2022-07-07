@@ -48,6 +48,15 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
+            <ImageView
+                android:id="@+id/his_btn"
+                android:layout_width="@dimen/_50sdp"
+                android:padding="@dimen/_14sdp"
+                android:layout_height="@dimen/_50sdp"
+                android:src="@drawable/ic_baseline_history_24"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 

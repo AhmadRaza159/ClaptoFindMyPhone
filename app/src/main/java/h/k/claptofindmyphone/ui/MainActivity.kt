@@ -33,6 +33,9 @@ class MainActivity : AppCompatActivity() {
             "ctfmf", Context.MODE_PRIVATE
         )
         sharedPerefEditor = sharedPeref.edit()
+        if (isServiceRunning(ServiceRecordAudio::class.java)){
+            binding.switchBtn.isChecked=true
+        }
         animateNavigationDrawer()
         menuPoping()
         if (!sharedPeref.contains("flash_clap")){
@@ -71,6 +74,10 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnSetting.setOnClickListener {
             startActivity(Intent(this,SettingsActivity::class.java))
+        }
+        binding.hisBtn.setOnClickListener {
+            binding.hisBtn.animate().rotation(360F)
+            startActivity(Intent(this,RecordActivity::class.java))
         }
     }
 
@@ -121,6 +128,11 @@ class MainActivity : AppCompatActivity() {
             binding.navView.setNavigationItemSelectedListener { item ->
                 when (item.itemId) {
                     R.id.home -> {
+                        binding.drawerLayout.closeDrawers()
+                        true
+                    }
+                    R.id.history -> {
+                        startActivity(Intent(this,RecordActivity::class.java))
                         binding.drawerLayout.closeDrawers()
                         true
                     }

@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
-import android.hardware.Camera
 import android.hardware.camera2.CameraManager
 import android.media.AudioManager
 import android.media.AudioRecord
@@ -15,9 +14,12 @@ import android.os.*
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import h.k.claptofindmyphone.R
+import h.k.claptofindmyphone.models.RecordModel
 import h.k.claptofindmyphone.ui.MainActivity
 import org.tensorflow.lite.task.audio.classifier.AudioClassifier
+import java.util.*
 
 
 class ServiceRecordAudio : Service() {
@@ -70,9 +72,9 @@ class ServiceRecordAudio : Service() {
             ""
         }
         val notification: Notification = Notification.Builder(this, "1")
-            .setSmallIcon(R.drawable.ic_launcher_background) // the status icon
+            .setSmallIcon(R.drawable.logo) // the status icon
             .setWhen(System.currentTimeMillis()) // the time stamp
-            .setContentTitle("Assistive Touch") // the label of the entry
+            .setContentTitle("Clap To Find My Phone") // the label of the entry
             .setContentIntent(notiIntent) // The intent to send when the entry is clicked
             .build()
         startForeground(159, notification)
@@ -139,11 +141,30 @@ class ServiceRecordAudio : Service() {
 
                 val finishTime = System.currentTimeMillis()
                 if (filteredModelOutput.size > 0) {
+                    Log.e(
+                        "qq",
+                        filteredModelOutput[0].label.toString() + " , " + filteredModelOutput[0].index.toString()
+                    )
                     if (filteredModelOutput[0].index == 56 || filteredModelOutput[0].index == 57 || filteredModelOutput[0].index == 58) {
                         beeper = ToneGenerator(AudioManager.STREAM_NOTIFICATION, sharedPeref.getInt("melody_volume_clap",100))
 
+                        ////////
+                        var dataArray = ArrayList<RecordModel>()
+                        var dataA = sharedPeref.getString("record", null)
+                        dataArray =gson.fromJson(dataA, object : TypeToken<ArrayList<RecordModel>>() {}.type)
+                        val date1: Date = Date()
+                        val date=date1.date.toString() + "/" + (date1.month + 1) + "/" + (date1.year + 1900)
+                        val tim=   date1.hours.toString() + ":" + date1.minutes + ":" + date1.seconds
+                        dataArray.add(RecordModel("Clap", tim, date))
+                        sharedPerefEditor.putString("record", gson.toJson(dataArray))
+                        sharedPerefEditor.apply()
+
+                        /////////
+
+
                         if (sharedPeref.getBoolean("melody_clap", false)) {
-                            beeper.startTone(ToneGenerator.TONE_PROP_ACK,sharedPeref.getInt("melody_length_clap",500))
+                            beeper.startTone(ToneGenerator.TONE_CDMA_HIGH_SS,sharedPeref.getInt("melody_length_clap",500))
+                            Log.e("sss",sharedPeref.getInt("melody_length_clap",500).toString())
                         }
                         if (sharedPeref.getBoolean("flash_clap", false)) {
                             if (this@ServiceRecordAudio.packageManager?.hasSystemFeature(
@@ -188,8 +209,23 @@ class ServiceRecordAudio : Service() {
                 }
                     else if (filteredModelOutput[0].index == 479 || filteredModelOutput[0].index == 396 || filteredModelOutput[0].index == 79|| filteredModelOutput[0].index == 35) {
                         beeper = ToneGenerator(AudioManager.STREAM_NOTIFICATION, sharedPeref.getInt("melody_volume_whistle",100))
+                       ///////
+
+                        var dataArray = ArrayList<RecordModel>()
+                        var dataA = sharedPeref.getString("record", null)
+                        dataArray =gson.fromJson(dataA, object : TypeToken<ArrayList<RecordModel>>() {}.type)
+                        val date1: Date = Date()
+                        val date=date1.date.toString() + "/" + (date1.month + 1) + "/" + (date1.year + 1900)
+                        val tim=   date1.hours.toString() + ":" + date1.minutes + ":" + date1.seconds
+                        dataArray.add(RecordModel("Whistle", tim, date))
+                        sharedPerefEditor.putString("record", gson.toJson(dataArray))
+                        sharedPerefEditor.apply()
+                        //////////////////////
+
+
+
                         if (sharedPeref.getBoolean("melody_whistle", false)) {
-                            beeper.startTone(ToneGenerator.TONE_PROP_ACK,sharedPeref.getInt("melody_length_whistle",500))
+                            beeper.startTone(ToneGenerator.TONE_CDMA_HIGH_L,sharedPeref.getInt("melody_length_whistle",500))
                         }
                         if (sharedPeref.getBoolean("flash_whistle", false)) {
                             if (this@ServiceRecordAudio.packageManager?.hasSystemFeature(
