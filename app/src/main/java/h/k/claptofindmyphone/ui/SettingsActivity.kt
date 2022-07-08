@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.SeekBar
 import androidx.annotation.RequiresApi
+import androidx.appcompat.content.res.AppCompatResources
 import com.google.gson.Gson
 import h.k.claptofindmyphone.R
 import h.k.claptofindmyphone.databinding.ActivitySettingsBinding
@@ -34,7 +35,6 @@ class SettingsActivity : AppCompatActivity() {
             "ctfmf", Context.MODE_PRIVATE
         )
         sharedPerefEditor = sharedPeref.edit()
-        binding.clapBar.visibility=View.INVISIBLE
 
         loadWhistleSetting()
 
@@ -44,15 +44,19 @@ class SettingsActivity : AppCompatActivity() {
     private fun clickListeners() {
         binding.toolbarClap.setOnClickListener {
             selectedItem=1
-            binding.clapBar.visibility=View.VISIBLE
-            binding.whistleBar.visibility=View.INVISIBLE
+            binding.toolbarClap.backgroundTintList=
+                AppCompatResources.getColorStateList(this, R.color.app_purple)
+            binding.toolbarWhistle.backgroundTintList=
+                AppCompatResources.getColorStateList(this, R.color.app_greenish)
             loadClapSetting()
 
         }
         binding.toolbarWhistle.setOnClickListener {
             selectedItem=0
-            binding.clapBar.visibility=View.INVISIBLE
-            binding.whistleBar.visibility=View.VISIBLE
+            binding.toolbarClap.backgroundTintList=
+                AppCompatResources.getColorStateList(this, R.color.app_greenish)
+            binding.toolbarWhistle.backgroundTintList=
+                AppCompatResources.getColorStateList(this, R.color.app_purple)
             loadWhistleSetting()
 
         }

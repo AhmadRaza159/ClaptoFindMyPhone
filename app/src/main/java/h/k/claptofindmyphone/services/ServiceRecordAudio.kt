@@ -207,7 +207,7 @@ class ServiceRecordAudio : Service() {
                         filteredModelOutput[0].label.toString() + " , " + filteredModelOutput[0].index.toString()
                     )
                 }
-                    else if (filteredModelOutput[0].index == 479 || filteredModelOutput[0].index == 396 || filteredModelOutput[0].index == 79|| filteredModelOutput[0].index == 35) {
+                    else if (filteredModelOutput[0].index == 426 || filteredModelOutput[0].index == 479 || filteredModelOutput[0].index == 396 || filteredModelOutput[0].index == 79|| filteredModelOutput[0].index == 35) {
                         beeper = ToneGenerator(AudioManager.STREAM_NOTIFICATION, sharedPeref.getInt("melody_volume_whistle",100))
                        ///////
 

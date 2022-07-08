@@ -6,23 +6,28 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
+import com.google.gson.Gson
 import h.k.claptofindmyphone.R
 import h.k.claptofindmyphone.databinding.ActivityMainBinding
+import h.k.claptofindmyphone.models.RecordModel
 import h.k.claptofindmyphone.services.ServiceRecordAudio
+
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     lateinit var sharedPeref: SharedPreferences
     lateinit var sharedPerefEditor: SharedPreferences.Editor
+    var gson= Gson()
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,6 +56,11 @@ class MainActivity : AppCompatActivity() {
             sharedPerefEditor.putInt("melody_volume_clap", 100)
 
         }
+        if (!sharedPeref.contains("record")){
+            var dataArray = ArrayList<RecordModel>()
+            sharedPerefEditor.putString("record", gson.toJson(dataArray))
+            sharedPerefEditor.apply()
+        }
 
         binding.switchBtn.setOnCheckedChangeListener { compoundButton, isChecked ->
             if (isChecked){
@@ -73,6 +83,20 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btnSetting.setOnClickListener {
+//            val notification = RingtoneManager.getActualDefaultRingtoneUri(this,RingtoneManager.TYPE_RINGTONE)
+//            val r = RingtoneManager.getRingtone(applicationContext, notification)
+//            r.play()
+
+//            val currentRingtone: Uri = RingtoneManager.getActualDefaultRingtoneUri(this,
+//                RingtoneManager.TYPE_ALARM)
+//            val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
+//            intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE,
+//                RingtoneManager.TYPE_RINGTONE)
+//            intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Select Tone")
+//            intent.putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, currentRingtone)
+//            intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+//            intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+//            startActivityForResult(intent, 999)
             startActivity(Intent(this,SettingsActivity::class.java))
         }
         binding.hisBtn.setOnClickListener {
@@ -232,5 +256,14 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
+//    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+//        super.onActivityResult(requestCode, resultCode, data)
+//        if (requestCode == 999 && resultCode == RESULT_OK) {
+//            val uri = data!!.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+//            val r = RingtoneManager.getRingtone(applicationContext, uri)
+//            r.play()
+//        }
+//    }
 
 }
