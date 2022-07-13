@@ -39,8 +39,18 @@ class SplashScreenActivity : AppCompatActivity() {
         }, 3000)
         binding.extendedFloatingActionButton.setOnClickListener {
             if (checkRecordAudioPermission()){
-                startActivity(Intent(this, MainActivity::class.java))
-                finish()
+                if (!Settings.canDrawOverlays(this)) {
+                    val intent = Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:$packageName")
+                    )
+                    startActivityForResult(intent, 12)
+
+                } else {
+                    startActivity(Intent(this, MainActivity::class.java))
+                    finish()
+                }
+
             }
             else{
                 reqRecordAudioPermission()
@@ -83,6 +93,23 @@ class SplashScreenActivity : AppCompatActivity() {
         }
     }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (checkRecordAudioPermission()){
+            if (!Settings.canDrawOverlays(this)) {
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:$packageName")
+                )
+                startActivityForResult(intent, 12)
+
+            } else {
+                startActivity(Intent(this, MainActivity::class.java))
+                finish()
+            }
+        }
+    }
+
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -90,8 +117,17 @@ class SplashScreenActivity : AppCompatActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (checkRecordAudioPermission()){
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
+            if (!Settings.canDrawOverlays(this)) {
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:$packageName")
+                )
+                startActivityForResult(intent, 12)
+
+            } else {
+                startActivity(Intent(this, MainActivity::class.java))
+                finish()
+            }
         }
     }
 

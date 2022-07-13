@@ -5,17 +5,21 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.graphics.PixelFormat
 import android.hardware.camera2.CameraManager
-import android.media.AudioManager
-import android.media.AudioRecord
-import android.media.MediaRecorder
-import android.media.ToneGenerator
+import android.media.*
 import android.os.*
+import android.util.DisplayMetrics
 import android.util.Log
+import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.View
+import android.view.WindowManager
 import androidx.annotation.RequiresApi
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import h.k.claptofindmyphone.R
+import h.k.claptofindmyphone.databinding.ActivityAlarmBinding
 import h.k.claptofindmyphone.models.RecordModel
 import h.k.claptofindmyphone.ui.MainActivity
 import org.tensorflow.lite.task.audio.classifier.AudioClassifier
@@ -24,8 +28,6 @@ import java.util.*
 
 class ServiceRecordAudio : Service() {
     private var mNM: NotificationManager? = null
-    private var recorder: MediaRecorder? = null
-    private lateinit var beeper : ToneGenerator
     private var audioClassifier: AudioClassifier? = null
     private var audioRecord: AudioRecord? = null
     private var classificationInterval = 500L // how often should classification run in milli-secs
@@ -33,10 +35,14 @@ class ServiceRecordAudio : Service() {
     lateinit var sharedPeref: SharedPreferences
     lateinit var sharedPerefEditor: SharedPreferences.Editor
     lateinit var gson: Gson
-    lateinit var cameraManager: CameraManager
+    private var winManager: WindowManager? = null
+    private var winParam: WindowManager.LayoutParams? = null
+    private var touchIcon: View? = null
+    private var displayMetrics: DisplayMetrics? = null
+    private lateinit var bindingTouchIconBinding: ActivityAlarmBinding
     lateinit var vibrator: Vibrator
-    val myString = "0101010101"
-    val blinkDelay: Long = 50
+    private lateinit var ringtone: Ringtone
+    lateinit var cameraManager: CameraManager
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate() {
@@ -65,7 +71,7 @@ class ServiceRecordAudio : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val chan = NotificationChannel(
                 "1",
-                "a", NotificationManager.IMPORTANCE_NONE
+                "Clap To Find My Phone", NotificationManager.IMPORTANCE_NONE
             )
             mNM?.createNotificationChannel(chan)
         } else {
@@ -79,14 +85,43 @@ class ServiceRecordAudio : Service() {
             .build()
         startForeground(159, notification)
 
+        displayMetrics = DisplayMetrics()
+        touchIcon = LayoutInflater.from(this).inflate(R.layout.activity_alarm, null)
+        winManager = this.getSystemService(WINDOW_SERVICE) as WindowManager
+        winParam = WindowManager.LayoutParams()
+        winManager?.defaultDisplay?.getMetrics(displayMetrics)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            winParam!!.type = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            winParam!!.type = WindowManager.LayoutParams.TYPE_PHONE
+        }
+
+        winParam!!.width = WindowManager.LayoutParams.MATCH_PARENT
+        winParam!!.height = WindowManager.LayoutParams.MATCH_PARENT
+        winParam!!.x = displayMetrics!!.widthPixels / 2
+        winParam!!.y = displayMetrics!!.widthPixels / 1
+        winParam!!.gravity = (Gravity.TOP or Gravity.LEFT)
+        winParam!!.format = PixelFormat.RGBA_8888
+        winParam!!.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+        bindingTouchIconBinding = ActivityAlarmBinding.bind(touchIcon!!)
+
+        vibrator=this.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        ringtone = RingtoneManager.getRingtone(applicationContext, RingtoneManager.getActualDefaultRingtoneUri(this,
+            RingtoneManager.TYPE_RINGTONE))
+
         gson = Gson()
         sharedPeref = this.getSharedPreferences(
             "ctfmf", Context.MODE_PRIVATE
         )
         sharedPerefEditor = sharedPeref.edit()
-        cameraManager = this.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        vibrator=this.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+
         handler = Handler()
+        bindingTouchIconBinding.animationView.setOnClickListener {
+            ringtone.stop()
+            winManager?.removeView(touchIcon)
+
+        }
         startAudioClassification()
         //////
 
@@ -100,6 +135,7 @@ class ServiceRecordAudio : Service() {
     override fun onDestroy() {
         super.onDestroy()
         mNM?.cancel(159)
+        winManager?.removeView(touchIcon)
         handler.removeCallbacksAndMessages(null)
         audioRecord?.stop()
         audioRecord = null
@@ -146,15 +182,20 @@ class ServiceRecordAudio : Service() {
                         filteredModelOutput[0].label.toString() + " , " + filteredModelOutput[0].index.toString()
                     )
                     if (filteredModelOutput[0].index == 56 || filteredModelOutput[0].index == 57 || filteredModelOutput[0].index == 58) {
-                        beeper = ToneGenerator(AudioManager.STREAM_NOTIFICATION, sharedPeref.getInt("melody_volume_clap",100))
+
+//                        var intnt = Intent(this@ServiceRecordAudio, AlarmActivity::class.java)
 
                         ////////
                         var dataArray = ArrayList<RecordModel>()
                         var dataA = sharedPeref.getString("record", null)
-                        dataArray =gson.fromJson(dataA, object : TypeToken<ArrayList<RecordModel>>() {}.type)
+                        dataArray = gson.fromJson(
+                            dataA,
+                            object : TypeToken<ArrayList<RecordModel>>() {}.type
+                        )
                         val date1: Date = Date()
-                        val date=date1.date.toString() + "/" + (date1.month + 1) + "/" + (date1.year + 1900)
-                        val tim=   date1.hours.toString() + ":" + date1.minutes + ":" + date1.seconds
+                        val date =
+                            date1.date.toString() + "/" + (date1.month + 1) + "/" + (date1.year + 1900)
+                        val tim = date1.hours.toString() + ":" + date1.minutes + ":" + date1.seconds
                         dataArray.add(RecordModel("Clap", tim, date))
                         sharedPerefEditor.putString("record", gson.toJson(dataArray))
                         sharedPerefEditor.apply()
@@ -163,8 +204,7 @@ class ServiceRecordAudio : Service() {
 
 
                         if (sharedPeref.getBoolean("melody_clap", false)) {
-                            beeper.startTone(ToneGenerator.TONE_CDMA_HIGH_SS,sharedPeref.getInt("melody_length_clap",500))
-                            Log.e("sss",sharedPeref.getInt("melody_length_clap",500).toString())
+                            ringtone.play()
                         }
                         if (sharedPeref.getBoolean("flash_clap", false)) {
                             if (this@ServiceRecordAudio.packageManager?.hasSystemFeature(
@@ -172,7 +212,9 @@ class ServiceRecordAudio : Service() {
                                 ) == true
                             ) {
 
-
+                                cameraManager = this@ServiceRecordAudio.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+                                val myString = "0101010101"
+                                val blinkDelay: Long = 50
                                 for (i in 0 until myString.length) {
                                     if (myString[i] == '0') {
                                         cameraManager.setTorchMode(
@@ -193,7 +235,7 @@ class ServiceRecordAudio : Service() {
                                 }
                             }
                         }
-                        if (sharedPeref.getBoolean("vibrate_clap",false)){
+                        if (sharedPeref.getBoolean("vibrate_clap", false)) {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                                 vibrator.vibrate(VibrationEffect.createOneShot(sharedPeref.getInt("melody_length_clap",500).toLong(), VibrationEffect.DEFAULT_AMPLITUDE));
                             } else {
@@ -202,30 +244,35 @@ class ServiceRecordAudio : Service() {
                             }
                         }
 
-                    Log.e(
-                        "qq",
-                        filteredModelOutput[0].label.toString() + " , " + filteredModelOutput[0].index.toString()
-                    )
-                }
-                    else if (filteredModelOutput[0].index == 426 || filteredModelOutput[0].index == 479 || filteredModelOutput[0].index == 396 || filteredModelOutput[0].index == 79|| filteredModelOutput[0].index == 35) {
-                        beeper = ToneGenerator(AudioManager.STREAM_NOTIFICATION, sharedPeref.getInt("melody_volume_whistle",100))
-                       ///////
+                        try {
+                            winManager?.addView(touchIcon, winParam)
+                        }catch (e:Exception){
+                            e.printStackTrace()
+                        }
+
+
+
+                    } else if (filteredModelOutput[0].index == 426 || filteredModelOutput[0].index == 479 || filteredModelOutput[0].index == 396 || filteredModelOutput[0].index == 79 || filteredModelOutput[0].index == 35) {
+                        ///////
 
                         var dataArray = ArrayList<RecordModel>()
                         var dataA = sharedPeref.getString("record", null)
-                        dataArray =gson.fromJson(dataA, object : TypeToken<ArrayList<RecordModel>>() {}.type)
+                        dataArray = gson.fromJson(
+                            dataA,
+                            object : TypeToken<ArrayList<RecordModel>>() {}.type
+                        )
                         val date1: Date = Date()
-                        val date=date1.date.toString() + "/" + (date1.month + 1) + "/" + (date1.year + 1900)
-                        val tim=   date1.hours.toString() + ":" + date1.minutes + ":" + date1.seconds
+                        val date =
+                            date1.date.toString() + "/" + (date1.month + 1) + "/" + (date1.year + 1900)
+                        val tim = date1.hours.toString() + ":" + date1.minutes + ":" + date1.seconds
                         dataArray.add(RecordModel("Whistle", tim, date))
                         sharedPerefEditor.putString("record", gson.toJson(dataArray))
                         sharedPerefEditor.apply()
                         //////////////////////
 
 
-
                         if (sharedPeref.getBoolean("melody_whistle", false)) {
-                            beeper.startTone(ToneGenerator.TONE_CDMA_HIGH_L,sharedPeref.getInt("melody_length_whistle",500))
+                            ringtone.play()
                         }
                         if (sharedPeref.getBoolean("flash_whistle", false)) {
                             if (this@ServiceRecordAudio.packageManager?.hasSystemFeature(
@@ -233,7 +280,9 @@ class ServiceRecordAudio : Service() {
                                 ) == true
                             ) {
 
-
+                                cameraManager = this@ServiceRecordAudio.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+                                val myString = "0101010101"
+                                val blinkDelay: Long = 50
                                 for (i in 0 until myString.length) {
                                     if (myString[i] == '0') {
                                         cameraManager.setTorchMode(
@@ -254,37 +303,39 @@ class ServiceRecordAudio : Service() {
                                 }
                             }
                         }
-                        if (sharedPeref.getBoolean("vibrate_whistle",false)){
+                        if (sharedPeref.getBoolean("vibrate_whistle", false)) {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                vibrator.vibrate(VibrationEffect.createOneShot(sharedPeref.getInt("melody_length_whistle",500).toLong(), VibrationEffect.DEFAULT_AMPLITUDE));
+                                vibrator.vibrate(VibrationEffect.createOneShot(sharedPeref.getInt("melody_length_clap",500).toLong(), VibrationEffect.DEFAULT_AMPLITUDE));
                             } else {
                                 //deprecated in API 26
-                                vibrator.vibrate(sharedPeref.getInt("melody_length_whistle",500).toLong())
+                                vibrator.vibrate(sharedPeref.getInt("melody_length_clap",500).toLong());
                             }
                         }
-
-                        Log.e(
-                            "qq",
-                            filteredModelOutput[0].label.toString() + " , " + filteredModelOutput[0].index.toString()
-                        )
-                    }
-
+                        try {
+                            winManager?.addView(touchIcon, winParam)
+                        }catch (e:Exception){
+                            e.printStackTrace()
+                        }
 
                     }
-            Log.d("TAG", "Latency = ${finishTime - startTime}ms")
 
-            // Updating the UI
 
-            // Rerun the classification after a certain interval
-            handler.postDelayed(this, classificationInterval)
+                }
+                Log.d("TAG", "Latency = ${finishTime - startTime}ms")
+
+                // Updating the UI
+
+                // Rerun the classification after a certain interval
+                handler.postDelayed(this, classificationInterval)
+            }
         }
-    }
 
 // Start the classification process
-    handler.post(run)
+        handler.post(run)
 
 // Save the instances we just created for use later
-    audioClassifier = classifier
-    audioRecord = record
-}
+        audioClassifier = classifier
+        audioRecord = record
+    }
+
 }

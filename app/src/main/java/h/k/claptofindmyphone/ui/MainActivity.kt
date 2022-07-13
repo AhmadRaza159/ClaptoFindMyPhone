@@ -62,6 +62,7 @@ class MainActivity : AppCompatActivity() {
             sharedPerefEditor.apply()
         }
 
+
         binding.switchBtn.setOnCheckedChangeListener { compoundButton, isChecked ->
             if (isChecked){
                 if (!isServiceRunning(ServiceRecordAudio::class.java)){
@@ -83,9 +84,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btnSetting.setOnClickListener {
-//            val notification = RingtoneManager.getActualDefaultRingtoneUri(this,RingtoneManager.TYPE_RINGTONE)
-//            val r = RingtoneManager.getRingtone(applicationContext, notification)
-//            r.play()
+
+//            r.isLooping=true
 
 //            val currentRingtone: Uri = RingtoneManager.getActualDefaultRingtoneUri(this,
 //                RingtoneManager.TYPE_ALARM)
